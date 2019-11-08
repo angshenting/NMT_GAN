@@ -337,38 +337,38 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True, precision='float32'):
 def tableLookup(vocab_size, embedding_size, scope="tableLookup", init_device='/cpu:0', reuse_var=False, prefix='tablelookup'):
    
     if not scope:
-        scope=tf.get_variable_scope()
+        scope=tf.compat.v1.get_variable_scope()
 
-    with tf.variable_scope(scope) as vs:
+    with tf.compat.v1.variable_scope(scope) as vs:
         if not  reuse_var:
             with tf.device(init_device):
                 embeddings_init=norm_weight(vocab_size, embedding_size)
-                embeddings=tf.get_variable('embeddings',shape=[vocab_size, embedding_size], initializer=tf.constant_initializer(embeddings_init))
+                embeddings=tf.compat.v1.get_variable('embeddings',shape=[vocab_size, embedding_size], initializer=tf.compat.v1.constant_initializer(embeddings_init))
         else:
-                tf.get_variable_scope().reuse_variables()
-                embeddings=tf.get_variable('embeddings')
+                tf.compat.v1.get_variable_scope().reuse_variables()
+                embeddings=tf.compat.v1.get_variable('embeddings')
     return embeddings
                 
 def FCLayer(state_below, input_size, output_size,  is_3d = True, reuse_var = False, use_bias=True, activation=None, scope='ff', init_device='/cpu:0', prefix='ff', precision='float32'):
     
     if not scope:
-        scope=tf.get_variable_scope()
+        scope=tf.compat.v1.get_variable_scope()
     
-    with tf.variable_scope(scope):
+    with tf.compat.v1.variable_scope(scope):
         if not reuse_var:
             with tf.device(init_device):
                 W_init = norm_weight(input_size, output_size)
-                matrix=tf.get_variable('W', [input_size, output_size], initializer=tf.constant_initializer(W_init), trainable=True)
+                matrix=tf.compat.v1.get_variable('W', [input_size, output_size], initializer=tf.compat.v1.constant_initializer(W_init), trainable=True)
                 if use_bias:
                     bias_init =  numpy.zeros((output_size,)).astype(precision)
-                    bias = tf.get_variable('b', output_size, initializer=tf.constant_initializer(bias_init), trainable=True)
+                    bias = tf.compat.v1.get_variable('b', output_size, initializer=tf.compat.v1.constant_initializer(bias_init), trainable=True)
         else:
-            tf.get_variable_scope().reuse_variables()
-            matrix=tf.get_variable('W')
+            tf.compat.v1.get_variable_scope().reuse_variables()
+            matrix=tf.compat.v1.get_variable('W')
             if use_bias:
-                bias=tf.get_variable('b')
+                bias=tf.compat.v1.get_variable('b')
 
-        inputShape = tf.shape(state_below)
+        inputShape = tf.shape(input=state_below)
         if is_3d :
             state_below=tf.reshape(state_below, [-1, inputShape[2]])
             output=tf.matmul(state_below, matrix)
@@ -395,7 +395,7 @@ def average_clip_gradient(tower_grads, clip_c):
 			grads.append(expanded_g)
 			# Average over the 'tower' dimension.
 		grad = tf.concat(axis=0, values=grads)
-		grad = tf.reduce_mean(grad, 0)
+		grad = tf.reduce_mean(input_tensor=grad, axis=0)
 		# Keep in mind that the Variables are redundant because they are shared
 		#  across towers. So .. we will just return the first tower's pointer to
 		# the Variable.
@@ -424,7 +424,7 @@ def average_clip_gradient_by_value(tower_grads, clip_min, clip_max):
 			grads.append(expanded_g)
 			# Average over the 'tower' dimension.
 		grad = tf.concat(axis=0, values=grads)
-		grad = tf.reduce_mean(grad, 0)
+		grad = tf.reduce_mean(input_tensor=grad, axis=0)
 		# Keep in mind that the Variables are redundant because they are shared
 		#  across towers. So .. we will just return the first tower's pointer to
 		# the Variable.

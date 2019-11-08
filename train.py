@@ -20,18 +20,18 @@ def train(config):
     model = Model(config=config)
     model.build_train_model()
 
-    sess_config = tf.ConfigProto()
+    sess_config = tf.compat.v1.ConfigProto()
     sess_config.gpu_options.allow_growth = True
     sess_config.allow_soft_placement = True
 
     with model.graph.as_default():
-        saver = tf.train.Saver(var_list=tf.global_variables())
-        summary_writer = tf.summary.FileWriter(config.train.logdir, graph=model.graph)
+        saver = tf.compat.v1.train.Saver(var_list=tf.compat.v1.global_variables())
+        summary_writer = tf.compat.v1.summary.FileWriter(config.train.logdir, graph=model.graph)
         # saver_partial = tf.train.Saver(var_list=[v for v in tf.trainable_variables() if 'Adam' not in v.name])
 
-        with tf.Session(config=sess_config) as sess:
+        with tf.compat.v1.Session(config=sess_config) as sess:
             # Initialize all variables.
-            sess.run(tf.global_variables_initializer())
+            sess.run(tf.compat.v1.global_variables_initializer())
             try:
                 # saver_partial.restore(sess, tf.train.latest_checkpoint(config.train.logdir))
                 # print('Restore partial model from %s.' % config.train.logdir)

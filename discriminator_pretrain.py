@@ -15,14 +15,14 @@ from share_function import extend_sentence_to_maxlen
 from share_function import FlushFile
 
 def gan_train(config):
-    sess_config = tf.ConfigProto()
+    sess_config = tf.compat.v1.ConfigProto()
     sess_config.gpu_options.allow_growth = True
     sess_config.allow_soft_placement = True
 
     default_graph=tf.Graph()
     with default_graph.as_default():
         
-        sess = tf.Session(config=sess_config, graph=default_graph)
+        sess = tf.compat.v1.Session(config=sess_config, graph=default_graph)
         logger = logging.getLogger('')
 
         dis_filter_sizes = [i for i in range(1, config.train.dis_max_len, 4)]

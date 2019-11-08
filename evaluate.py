@@ -29,13 +29,13 @@ class Evaluator(object):
         self.du.load_vocab()
 
         # Create session
-        sess_config = tf.ConfigProto()
+        sess_config = tf.compat.v1.ConfigProto()
         sess_config.gpu_options.allow_growth = True
         sess_config.allow_soft_placement = True
-        self.sess = tf.Session(config=sess_config, graph=self.model.graph)
+        self.sess = tf.compat.v1.Session(config=sess_config, graph=self.model.graph)
         # Restore model.
         with self.model.graph.as_default():
-            saver = tf.train.Saver(tf.global_variables())
+            saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
         saver.restore(self.sess, tf.train.latest_checkpoint(config.train.logdir))
 
     def __del__(self):

@@ -18,13 +18,13 @@ from share_function import prepare_gan_dis_data
 from share_function import FlushFile
 
 def gan_train(config):
-    sess_config = tf.ConfigProto()
+    sess_config = tf.compat.v1.ConfigProto()
     sess_config.gpu_options.allow_growth = True
     sess_config.allow_soft_placement = True
 
     default_graph=tf.Graph()
     with default_graph.as_default():
-        sess = tf.Session(config=sess_config, graph=default_graph)
+        sess = tf.compat.v1.Session(config=sess_config, graph=default_graph)
 
         logger = logging.getLogger('')
         du = DataUtil(config=config)

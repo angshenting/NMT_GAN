@@ -22,7 +22,7 @@ class Model(object):
             self.graph = graph
 
         if sess is None:
-            self.sess=tf.Session(graph=self.graph)
+            self.sess=tf.compat.v1.Session(graph=self.graph)
         else:
             self.sess=sess
 
@@ -44,19 +44,19 @@ class Model(object):
             with self.graph.as_default():
                 with tf.device(self.sync_device):
                     # Preparing optimizer.
-                    self.global_step = tf.get_variable(name='global_step', dtype=INT_TYPE, shape=[],
-                                                       trainable=False, initializer=tf.zeros_initializer)
-                    self.learning_rate = tf.convert_to_tensor(self.config.train.learning_rate)
+                    self.global_step = tf.compat.v1.get_variable(name='global_step', dtype=INT_TYPE, shape=[],
+                                                       trainable=False, initializer=tf.compat.v1.zeros_initializer)
+                    self.learning_rate = tf.convert_to_tensor(value=self.config.train.learning_rate)
                     if self.config.train.optimizer == 'adam':
-                        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+                        self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate)
                     elif self.config.train.optimizer == 'adam_decay':
                         self.learning_rate = learning_rate_decay(self.config, self.global_step)
-                        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,
+                        self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate,
                                                                 beta1=0.9, beta2=0.98, epsilon=1e-9)
                     elif self.config.train.optimizer == 'sgd':
-                        self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
+                        self.optimizer = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
                     elif self.config.train.optimizer == 'mom':
-                        self.optimizer = tf.train.MomentumOptimizer(self.learning_rate, momentum=0.9)
+                        self.optimizer = tf.compat.v1.train.MomentumOptimizer(self.learning_rate, momentum=0.9)
                     else:
                         logging.info("No optimizer is defined for the model")
                         raise ValueError
@@ -69,8 +69,8 @@ class Model(object):
         self.prepare(is_training=True)
         with self.graph.as_default():
             with tf.device(self.sync_device):
-                self.src_pl = tf.placeholder(dtype=INT_TYPE, shape=[None, None], name='src_pl')
-                self.dst_pl = tf.placeholder(dtype=INT_TYPE, shape=[None, None], name='dst_pl')
+                self.src_pl = tf.compat.v1.placeholder(dtype=INT_TYPE, shape=[None, None], name='src_pl')
+                self.dst_pl = tf.compat.v1.placeholder(dtype=INT_TYPE, shape=[None, None], name='dst_pl')
                 Xs = split_tensor(self.src_pl, len(self.devices))
                 Ys = split_tensor(self.dst_pl, len(self.devices))
                 acc_list, loss_list, gv_list = [], [], []
@@ -84,43 +84,43 @@ class Model(object):
                         loss_list.append(loss)
                         gv_list.append(self.optimizer.compute_gradients(loss))
 
-                self.acc = tf.reduce_mean(acc_list)
-                self.loss = tf.reduce_mean(loss_list)
+                self.acc = tf.reduce_mean(input_tensor=acc_list)
+                self.loss = tf.reduce_mean(input_tensor=loss_list)
 
                 # Clip gradients and then apply.
                 grads_and_vars = average_gradients(gv_list)
                 if self._summary:
                     for g, v in grads_and_vars:
-                        tf.summary.histogram('variables/' + v.name.split(':')[0], v)
-                        tf.summary.histogram('gradients/' + v.name.split(':')[0], g)
+                        tf.compat.v1.summary.histogram('variables/' + v.name.split(':')[0], v)
+                        tf.compat.v1.summary.histogram('gradients/' + v.name.split(':')[0], g)
                 grads, self.grads_norm = tf.clip_by_global_norm([gv[0] for gv in grads_and_vars],
                                                                 clip_norm=self.config.train.grads_clip)
                 grads_and_vars = zip(grads, [gv[1] for gv in grads_and_vars])
                 self.train_op = self.optimizer.apply_gradients(grads_and_vars, global_step=self.global_step)
 
                 # Summaries
-                tf.summary.scalar('acc', self.acc)
-                tf.summary.scalar('loss', self.loss)
-                tf.summary.scalar('learning_rate', self.learning_rate)
-                tf.summary.scalar('grads_norm', self.grads_norm)
-                self.summary_op = tf.summary.merge_all()
+                tf.compat.v1.summary.scalar('acc', self.acc)
+                tf.compat.v1.summary.scalar('loss', self.loss)
+                tf.compat.v1.summary.scalar('learning_rate', self.learning_rate)
+                tf.compat.v1.summary.scalar('grads_norm', self.grads_norm)
+                self.summary_op = tf.compat.v1.summary.merge_all()
 
     def build_generate(self, max_len, generate_devices, optimizer='rmsprop'):
         with self.graph.as_default():
             with tf.device(self.sync_device):
                 if optimizer=='adam':
                     logging.info("using adam for g_loss")
-                    optimizer=tf.train.AdamOptimizer(self.config.generator.learning_rate)
+                    optimizer=tf.compat.v1.train.AdamOptimizer(self.config.generator.learning_rate)
                 if optimizer=='adadelta':
                     logging.info("using adadelta for g_loss")
-                    optimizer=tf.train.AdadeltaOptimizer()
+                    optimizer=tf.compat.v1.train.AdadeltaOptimizer()
                 else:
                     logging.info("using rmsprop for g_loss")
-                    optimizer=tf.train.RMSPropOptimizer(self.config.generator.learning_rate)
+                    optimizer=tf.compat.v1.train.RMSPropOptimizer(self.config.generator.learning_rate)
 
-                src_pl = tf.placeholder(dtype=INT_TYPE, shape=[None, None], name='gene_src_pl')
-                dst_pl = tf.placeholder(dtype=INT_TYPE, shape=[None, None], name='gene_dst_pl')
-                reward_pl = tf.placeholder(dtype=tf.float32, shape=[None, None], name='gene_reward')
+                src_pl = tf.compat.v1.placeholder(dtype=INT_TYPE, shape=[None, None], name='gene_src_pl')
+                dst_pl = tf.compat.v1.placeholder(dtype=INT_TYPE, shape=[None, None], name='gene_dst_pl')
+                reward_pl = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, None], name='gene_reward')
 
                 generate_devices= ['/gpu:' + i for i in generate_devices.split(',')] or ['/cpu:0']
 
@@ -128,7 +128,7 @@ class Model(object):
                 Ys = split_tensor(dst_pl, len(generate_devices))
                 Rs = split_tensor(reward_pl, len(generate_devices))
 
-                batch_size_list = [tf.shape(X)[0] for X in Xs]
+                batch_size_list = [tf.shape(input=X)[0] for X in Xs]
 
                 encoder_outputs = [None] * len(generate_devices)
                 for i, (X, device) in enumerate(zip(Xs, generate_devices)):
@@ -151,11 +151,11 @@ class Model(object):
                     next_logits = next_logits[:, i, :]
                     next_logits = tf.reshape(next_logits, [-1, self.config.dst_vocab_size])
                     next_probs = tf.nn.softmax(next_logits)
-                    next_sample = tf.argmax(next_probs, 1)
+                    next_sample = tf.argmax(input=next_probs, axis=1)
                     next_sample= tf.expand_dims(next_sample, -1)
-                    next_sample = tf.to_int32(next_sample)
+                    next_sample = tf.cast(next_sample, dtype=tf.int32)
                     next_y = tf.concat([cur_y[:, :i],next_sample], axis=1)
-                    next_y = tf.pad(next_y, [[0,0], [0, max_len-1-i]])
+                    next_y = tf.pad(tensor=next_y, paddings=[[0,0], [0, max_len-1-i]])
                     next_y.set_shape([None, max_len])
                     return i+1, next_y, encoder_output
 
@@ -188,7 +188,7 @@ class Model(object):
                         grads_and_vars_list.append(grads_and_vars)
 
                 grads_and_vars=average_gradients(grads_and_vars_list)
-                loss = tf.reduce_mean(loss_list)
+                loss = tf.reduce_mean(input_tensor=loss_list)
                 g_optm=optimizer.apply_gradients(grads_and_vars)
 
                 self.generate_x = src_pl
@@ -202,9 +202,9 @@ class Model(object):
 
     def build_rollout_generate(self, max_len, roll_generate_devices):
 
-        src_pl = tf.placeholder(dtype=INT_TYPE, shape=[None, None], name='gene_src_pl')
-        dst_pl = tf.placeholder(dtype=INT_TYPE, shape=[None, None], name='gene_dst_pl')
-        give_num_pl = tf.placeholder(dtype=INT_TYPE, shape=[], name='give_num_pl')
+        src_pl = tf.compat.v1.placeholder(dtype=INT_TYPE, shape=[None, None], name='gene_src_pl')
+        dst_pl = tf.compat.v1.placeholder(dtype=INT_TYPE, shape=[None, None], name='gene_dst_pl')
+        give_num_pl = tf.compat.v1.placeholder(dtype=INT_TYPE, shape=[], name='give_num_pl')
 
         devices = ['/gpu:' + i for i in roll_generate_devices.split(',')] or ['/cpu:0']
         Xs = split_tensor(src_pl, len(devices))
@@ -212,7 +212,7 @@ class Model(object):
 
         Ms = [give_num_pl] * len(devices)
 
-        batch_size_list = [tf.shape(X)[0] for X in Xs]
+        batch_size_list = [tf.shape(input=X)[0] for X in Xs]
 
         encoder_outputs = [None] * len(devices)
         for i, (X, device) in enumerate(zip(Xs, devices)):
@@ -234,13 +234,13 @@ class Model(object):
             #print(next_logits)
             next_probs = tf.nn.softmax(next_logits)
             #print(next_probs)
-            log_probs = tf.log(next_probs)
+            log_probs = tf.math.log(next_probs)
             #print(log_probs)
-            next_sample = tf.multinomial(log_probs, 1)
+            next_sample = tf.random.categorical(logits=log_probs, num_samples=1)
             #print(next_sample)
             next_sample_flat = tf.cast(next_sample, tf.int32)
             next_y = tf.concat([given_y[:, :given_num], next_sample_flat], axis=1)
-            next_y = tf.pad(next_y, [[0, 0], [0, max_len - given_num -1]])
+            next_y = tf.pad(tensor=next_y, paddings=[[0, 0], [0, max_len - given_num -1]])
             next_y.set_shape([None, max_len])
             return given_num +1, next_y, encoder_output
 
@@ -249,7 +249,7 @@ class Model(object):
             with tf.device(lambda op: self.choose_device(op, device)):
                 given_y = Y[:, :given_num]
 
-                init_given_y = tf.pad(given_y, [[0, 0], [0, (max_len-given_num)]])
+                init_given_y = tf.pad(tensor=given_y, paddings=[[0, 0], [0, (max_len-given_num)]])
                 _, roll_sample, _ = tf.while_loop(
                     cond = lambda a, _1, _2: a < max_len,
                     body=recurrency,
@@ -423,9 +423,9 @@ class Model(object):
 
 
     def init_and_restore(self, modelFile=None):
-        params = tf.trainable_variables()
-        init_op = tf.global_variables_initializer()
-        saver = tf.train.Saver(params)
+        params = tf.compat.v1.trainable_variables()
+        init_op = tf.compat.v1.global_variables_initializer()
+        saver = tf.compat.v1.train.Saver(params)
 
         self.sess.run(init_op)
         self.saver = saver
@@ -441,8 +441,8 @@ class Model(object):
 
         with self.graph.as_default():
             with tf.device(self.sync_device):
-                self.src_pl = tf.placeholder(dtype=INT_TYPE, shape=[None, None], name='src_pl')
-                self.dst_pl = tf.placeholder(dtype=INT_TYPE, shape=[None, None], name='dst_pl')
+                self.src_pl = tf.compat.v1.placeholder(dtype=INT_TYPE, shape=[None, None], name='src_pl')
+                self.dst_pl = tf.compat.v1.placeholder(dtype=INT_TYPE, shape=[None, None], name='dst_pl')
                 self.decoder_input = shift_right(self.dst_pl)
                 Xs = split_tensor(self.src_pl, len(self.devices))
                 Ys = split_tensor(self.dst_pl, len(self.devices))
@@ -493,7 +493,7 @@ class Model(object):
                                    reuse=reuse,
                                    multiplier=self.config.hidden_units**0.5 if self.config.scale_embedding else 1.0)
         """Transformer encoder."""
-        with tf.variable_scope("encoder", initializer=self._initializer, reuse=reuse):
+        with tf.compat.v1.variable_scope("encoder", initializer=self._initializer, reuse=reuse):
             # Mask
            # encoder_padding = tf.equal(encoder_input, 0)
            # # Embedding
@@ -505,13 +505,13 @@ class Model(object):
             # Add positional signal
             encoder_output = add_timing_signal_1d(encoder_output)
             # Dropout
-            encoder_output = tf.layers.dropout(encoder_output,
+            encoder_output = tf.compat.v1.layers.dropout(encoder_output,
                                                rate=self.config.residual_dropout_rate,
                                                training=self.is_training)
 
             # Blocks
             for i in range(self.config.num_blocks):
-                with tf.variable_scope("block_{}".format(i)):
+                with tf.compat.v1.variable_scope("block_{}".format(i)):
                     # Multihead Attention
                     encoder_output = residual(encoder_output,
                                               multihead_attention(
@@ -539,11 +539,11 @@ class Model(object):
                                               is_training=self.is_training)
 
         # Mask padding part to zeros.
-        encoder_output *= tf.expand_dims(1.0 - tf.to_float(encoder_padding), axis=-1)
+        encoder_output *= tf.expand_dims(1.0 - tf.cast(encoder_padding, dtype=tf.float32), axis=-1)
         return encoder_output
 
     def decoder(self, decoder_input, encoder_output, reuse):
-        encoder_padding = tf.equal(tf.reduce_sum(tf.abs(encoder_output), axis=-1), 0.0)
+        encoder_padding = tf.equal(tf.reduce_sum(input_tensor=tf.abs(encoder_output), axis=-1), 0.0)
         encoder_attention_bias = attention_bias_ignore_padding(encoder_padding)
         decoder_output = target(decoder_input,
                                    vocab_size=self.config.dst_vocab_size,
@@ -552,7 +552,7 @@ class Model(object):
                                    reuse=reuse,
                                    multiplier=self.config.hidden_units**0.5 if self.config.scale_embedding else 1.0)
         """Transformer decoder"""
-        with tf.variable_scope("decoder", initializer=self._initializer, reuse=reuse):
+        with tf.compat.v1.variable_scope("decoder", initializer=self._initializer, reuse=reuse):
             #encoder_padding = tf.equal(tf.reduce_sum(tf.abs(encoder_output), axis=-1), 0.0)
             #encoder_attention_bias = attention_bias_ignore_padding(encoder_padding)
 
@@ -564,15 +564,15 @@ class Model(object):
             # Positional Encoding
             decoder_output += add_timing_signal_1d(decoder_output)
             # Dropout
-            decoder_output = tf.layers.dropout(decoder_output,
+            decoder_output = tf.compat.v1.layers.dropout(decoder_output,
                                                rate=self.config.residual_dropout_rate,
                                                training=self.is_training)
             # Bias for preventing peeping later information
-            self_attention_bias = attention_bias_lower_triangle(tf.shape(decoder_input)[1])
+            self_attention_bias = attention_bias_lower_triangle(tf.shape(input=decoder_input)[1])
 
             # Blocks
             for i in range(self.config.num_blocks):
-                with tf.variable_scope("block_{}".format(i)):
+                with tf.compat.v1.variable_scope("block_{}".format(i)):
                     # Multihead Attention (self-attention)
                     decoder_output = residual(decoder_output,
                                               multihead_attention(
@@ -624,12 +624,12 @@ class Model(object):
                      shared_embedding = self.config.train.shared_embedding,
                      reuse=reuse)
         """During test, we only need the last prediction."""
-        with tf.variable_scope("output",initializer=self._initializer,  reuse=reuse):
+        with tf.compat.v1.variable_scope("output",initializer=self._initializer,  reuse=reuse):
             #last_logits = tf.layers.dense(decoder_output[:,-1], self.config.dst_vocab_size)
-            last_preds = tf.to_int32(tf.arg_max(last_logits, dimension=-1))
+            last_preds = tf.cast(tf.argmax(last_logits, axis=-1), dtype=tf.int32)
             z = tf.nn.log_softmax(last_logits)
             last_k_scores, last_k_preds = tf.nn.top_k(z, k=self.config.test.beam_size, sorted=False)
-            last_k_preds = tf.to_int32(last_k_preds)
+            last_k_preds = tf.cast(last_k_preds, dtype=tf.int32)
         return last_preds, last_k_preds, last_k_scores
 
     def test_loss(self, decoder_output, Y, reuse):
@@ -638,12 +638,12 @@ class Model(object):
                      dense_size = self.config.hidden_units,
                      shared_embedding = self.config.train.shared_embedding,
                      reuse=reuse)
-        with tf.variable_scope("output", initializer=self._initializer, reuse=reuse):
+        with tf.compat.v1.variable_scope("output", initializer=self._initializer, reuse=reuse):
             #logits = tf.layers.dense(decoder_output, self.config.dst_vocab_size)
-            mask = tf.to_float(tf.not_equal(Y, 0))
+            mask = tf.cast(tf.not_equal(Y, 0), dtype=tf.float32)
             labels = tf.one_hot(Y, depth=self.config.dst_vocab_size)
-            loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
-            loss_sum = tf.reduce_sum(loss * mask)
+            loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=tf.stop_gradient(labels))
+            loss_sum = tf.reduce_sum(input_tensor=loss * mask)
         return loss_sum
 
     def gan_output(self, decoder_output, Y, reward, reuse):
@@ -652,17 +652,17 @@ class Model(object):
                      dense_size = self.config.hidden_units,
                      shared_embedding = self.config.train.shared_embedding,
                      reuse=reuse)
-        with tf.variable_scope("output", initializer=self._initializer, reuse=reuse):
+        with tf.compat.v1.variable_scope("output", initializer=self._initializer, reuse=reuse):
             #logits = tf.layers.dense(decoder_output, self.config.dst_vocab_size)
-            l_shape=tf.shape(logits)
+            l_shape=tf.shape(input=logits)
             probs = tf.nn.softmax(tf.reshape(logits, [-1, self.config.dst_vocab_size]))
             probs = tf.reshape(probs, [l_shape[0], l_shape[1], l_shape[2]])
-            sample = tf.to_float(l_shape[0])
+            sample = tf.cast(l_shape[0], dtype=tf.float32)
             #n_sample = l_shape[0] * tf.convert_to_tensor(1.0, dtype=tf.float32)
             g_loss = -tf.reduce_sum(
-                tf.reduce_sum(tf.one_hot(tf.reshape(Y, [-1]), self.config.dst_vocab_size, 1.0, 0.0) *
-                              tf.reshape(probs, [-1, self.config.dst_vocab_size]), 1) *
-                              tf.reshape(reward, [-1]), 0) / sample
+                input_tensor=tf.reduce_sum(input_tensor=tf.one_hot(tf.reshape(Y, [-1]), self.config.dst_vocab_size, 1.0, 0.0) *
+                              tf.reshape(probs, [-1, self.config.dst_vocab_size]), axis=1) *
+                              tf.reshape(reward, [-1]), axis=0) / sample
         return g_loss
 
     def train_output(self, decoder_output, Y, reuse):
@@ -672,16 +672,16 @@ class Model(object):
                      dense_size = self.config.hidden_units,
                      shared_embedding = self.config.train.shared_embedding,
                      reuse=reuse)
-        with tf.variable_scope("output", initializer=self._initializer, reuse=reuse):
+        with tf.compat.v1.variable_scope("output", initializer=self._initializer, reuse=reuse):
             #logits = tf.layers.dense(decoder_output, self.config.dst_vocab_size)
-            preds = tf.to_int32(tf.arg_max(logits, dimension=-1))
-            mask = tf.to_float(tf.not_equal(Y, 0))
-            acc = tf.reduce_sum(tf.to_float(tf.equal(preds, Y)) * mask) / tf.reduce_sum(mask)
+            preds = tf.cast(tf.argmax(logits, axis=-1), dtype=tf.int32)
+            mask = tf.cast(tf.not_equal(Y, 0), dtype=tf.float32)
+            acc = tf.reduce_sum(input_tensor=tf.cast(tf.equal(preds, Y), dtype=tf.float32) * mask) / tf.reduce_sum(input_tensor=mask)
 
             # Smoothed loss
             loss = smoothing_cross_entropy(logits=logits, labels=Y, vocab_size=self.config.dst_vocab_size,
                                            confidence=1-self.config.train.label_smoothing)
-            mean_loss = tf.reduce_sum(loss * mask) / (tf.reduce_sum(mask))
+            mean_loss = tf.reduce_sum(input_tensor=loss * mask) / (tf.reduce_sum(input_tensor=mask))
 
         return acc, mean_loss
 
@@ -711,7 +711,7 @@ def average_gradients(tower_grads):
         else:
             # Average over the 'tower' dimension.
             grad = tf.concat(axis=0, values=grads)
-            grad = tf.reduce_mean(grad, 0)
+            grad = tf.reduce_mean(input_tensor=grad, axis=0)
 
             # Keep in mind that the Variables are redundant because they are shared
             # across towers. So .. we will just return the first tower's pointer to
@@ -734,7 +734,7 @@ def residual(inputs, outputs, dropout_rate, is_training):
     Returns:
         A Tensor.
     """
-    output = inputs + tf.layers.dropout(outputs, rate=dropout_rate, training=is_training)
+    output = inputs + tf.compat.v1.layers.dropout(outputs, rate=dropout_rate, training=is_training)
     output = layer_norm(output)
     return output
 
@@ -748,15 +748,15 @@ def split_tensor(input, n):
 
     Returns: A tensor list, each tensor has size [b/n, ...].
     """
-    batch_size = tf.shape(input)[0]
-    ls = tf.cast(tf.lin_space(0.0, tf.cast(batch_size, FLOAT_TYPE), n + 1), INT_TYPE)
+    batch_size = tf.shape(input=input)[0]
+    ls = tf.cast(tf.linspace(0.0, tf.cast(batch_size, FLOAT_TYPE), n + 1), INT_TYPE)
     return [input[ls[i]:ls[i+1]] for i in range(n)]
 
 
 def learning_rate_decay(config, global_step):
     """Inverse-decay learning rate until warmup_steps, then decay."""
-    warmup_steps = tf.to_float(config.train.learning_rate_warmup_steps)
-    global_step = tf.to_float(global_step)
+    warmup_steps = tf.cast(config.train.learning_rate_warmup_steps, dtype=tf.float32)
+    global_step = tf.cast(global_step, dtype=tf.float32)
     return config.hidden_units ** -0.5 * tf.minimum(
         (global_step + 1.0) * warmup_steps ** -1.5, (global_step + 1.0) ** -0.5)
 
@@ -766,19 +766,19 @@ def shift_right(input, pad=2):
     return tf.concat((tf.ones_like(input[:, :1]) * pad, input[:, :-1]), 1)
 
 def get_weight(vocab_size, dense_size, name=None):
-     weights = tf.get_variable("kernel", [vocab_size, dense_size], initializer=tf.random_normal_initializer(0.0, 512**-0.5))
+     weights = tf.compat.v1.get_variable("kernel", [vocab_size, dense_size], initializer=tf.compat.v1.random_normal_initializer(0.0, 512**-0.5))
      return weights
 
 def bottom(x, vocab_size, dense_size, shared_embedding=True, reuse=None, multiplier=1.0):
-    with tf.variable_scope("embedding", reuse=reuse):
+    with tf.compat.v1.variable_scope("embedding", reuse=reuse):
         if shared_embedding:
-            with tf.variable_scope("shared", reuse=None):
+            with tf.compat.v1.variable_scope("shared", reuse=None):
                embedding_var = get_weight(vocab_size, dense_size)
                emb_x = tf.gather(embedding_var, x)
                if multiplier != 1.0:
                    emb_x *= multiplier
         else:
-            with tf.variable_scope("src_embedding", reuse=None):
+            with tf.compat.v1.variable_scope("src_embedding", reuse=None):
                 embedding_var = get_weight(vocab_size, dense_size)
                 emb_x = tf.gather(embedding_var, x)
                 if multiplier !=1.0:
@@ -786,15 +786,15 @@ def bottom(x, vocab_size, dense_size, shared_embedding=True, reuse=None, multipl
     return emb_x
 
 def target(x, vocab_size, dense_size, shared_embedding=True, reuse=None, multiplier=1.0):
-    with tf.variable_scope("embedding", reuse=reuse):
+    with tf.compat.v1.variable_scope("embedding", reuse=reuse):
         if shared_embedding:
-            with tf.variable_scope("shared", reuse=True):
+            with tf.compat.v1.variable_scope("shared", reuse=True):
                embedding_var = get_weight(vocab_size, dense_size)
                emb_x = tf.gather(embedding_var, x)
                if multiplier != 1.0:
                    emb_x *= multiplier
         else:
-            with tf.variable_scope("dst_embedding", reuse=None):
+            with tf.compat.v1.variable_scope("dst_embedding", reuse=None):
                 embedding_var = get_weight(vocab_size, dense_size)
                 emb_x = tf.gather(embedding_var, x)
                 if multiplier !=1.0:
@@ -802,18 +802,18 @@ def target(x, vocab_size, dense_size, shared_embedding=True, reuse=None, multipl
     return emb_x
 
 def top(body_output, vocab_size, dense_size, shared_embedding=True, reuse=None):
-    with tf.variable_scope('embedding', reuse=reuse):
+    with tf.compat.v1.variable_scope('embedding', reuse=reuse):
         if shared_embedding:
-            with tf.variable_scope("shared", reuse=True):
-                shape=tf.shape(body_output)[:-1]
+            with tf.compat.v1.variable_scope("shared", reuse=True):
+                shape=tf.shape(input=body_output)[:-1]
                 body_output = tf.reshape(body_output, [-1, dense_size])
                 embedding_var = get_weight(vocab_size, dense_size)
                 logits = tf.matmul(body_output, embedding_var, transpose_b=True)
                 logits = tf.reshape(logits, tf.concat([shape, [vocab_size]], 0))
         else:
-            with tf.variable_scope("softmax", reuse=None):
+            with tf.compat.v1.variable_scope("softmax", reuse=None):
                 embedding_var = get_weight(vocab_size, dense_size)
-                shape=tf.shape(body_output)[:-1]
+                shape=tf.shape(input=body_output)[:-1]
                 body_output = tf.reshape(body_output, [-1, dense_size]) 
                 logits = tf.matmul(body_output, embedding_var, transpose_b=True)
                 logits = tf.reshape(logits, tf.concat([shape, [vocab_size]], 0))
@@ -821,9 +821,9 @@ def top(body_output, vocab_size, dense_size, shared_embedding=True, reuse=None):
 
 def embedding(x, vocab_size, dense_size, name=None, reuse=None, multiplier=1.0):
     """Embed x of type int64 into dense vectors."""
-    with tf.variable_scope(
+    with tf.compat.v1.variable_scope(
         name, default_name="embedding", values=[x], reuse=reuse):
-        embedding_var = tf.get_variable("kernel", [vocab_size, dense_size])
+        embedding_var = tf.compat.v1.get_variable("kernel", [vocab_size, dense_size])
         emb_x = tf.gather(embedding_var, x)
         if multiplier != 1.0:
             emb_x *= multiplier
