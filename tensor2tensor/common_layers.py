@@ -59,7 +59,7 @@ def inverse_exp_decay(max_step, min_value=0.01):
 
 
 def standardize_images(x):
-  """Image standardization on batches (tf.image.per_image_standardization)."""
+    """Image standardization on batches (tf.image.per_image_standardization)."""
     with tf.name_scope("standardize_images", [x]):
         x = tf.to_float(x)
         x_mean = tf.reduce_mean(x, axis=[1, 2, 3], keep_dims=True)
@@ -97,7 +97,7 @@ def flatten4d3d(x):
 
 
 def embedding(x, vocab_size, dense_size, name=None, reuse=None, multiplier=1.0):
-  """Embed x of type int64 into dense vectors, reducing to max 4 dimensions."""
+    """Embed x of type int64 into dense vectors, reducing to max 4 dimensions."""
     with tf.variable_scope(name, default_name="embedding", values=[x], reuse=reuse):
         embedding_var = tf.get_variable("kernel", [vocab_size, dense_size])
         # On the backwards pass, we want to convert the gradient from
@@ -126,7 +126,7 @@ def shift_left(x, pad_value=None):
 
 def shift_left_3d(x, pad_value=None):
     """Shift the second dimension of x right by one."""
-      if pad_value is None:
+    if pad_value is None:
         shifted_targets = tf.pad(x, [[0, 0], [1, 0], [0, 0]])[:, :-1, :]
     else:
         shifted_targets = tf.concat([pad_value, x], axis=1)[:, :-1, :]
@@ -134,12 +134,12 @@ def shift_left_3d(x, pad_value=None):
 
 
 def conv_stride2_multistep(x, nbr_steps, output_filters, name=None, reuse=None):
-  """Use a strided convolution to downsample x by 2, `nbr_steps` times.
+    """Use a strided convolution to downsample x by 2, `nbr_steps` times.
 
-  We use stride and filter size 2 to avoid the checkerboard problem of deconvs.
-  As detailed in http://distill.pub/2016/deconv-checkerboard/.
+    We use stride and filter size 2 to avoid the checkerboard problem of deconvs.
+    As detailed in http://distill.pub/2016/deconv-checkerboard/.
 
-  Args:
+    Args:
     x: a `Tensor` with shape `[batch, spatial, depth]` or
      `[batch, spatial_1, spatial_2, depth]`
     nbr_steps: number of halving downsample rounds to apply
@@ -147,25 +147,25 @@ def conv_stride2_multistep(x, nbr_steps, output_filters, name=None, reuse=None):
     name: a string
     reuse: a boolean
 
-  Returns:
+    Returns:
     a `Tensor` with shape `[batch, spatial / (2**nbr_steps), output_filters]` or
      `[batch, spatial_1 / (2**nbr_steps), spatial_2 / (2**nbr_steps),
        output_filters]`
-  """
-  with tf.variable_scope(
-      name, default_name="conv_stride2_multistep", values=[x], reuse=reuse):
-    if nbr_steps == 0:
-      out = conv(x, output_filters, (1, 1))
-      return out, [out]
-    hidden_layers = [x]
-    for i in xrange(nbr_steps):
-      hidden_layers.append(
-          conv(
-              hidden_layers[-1],
-              output_filters, (2, 2),
-              strides=2,
-              activation=tf.nn.relu,
-              name="conv" + str(i)))
+    """
+    with tf.variable_scope(
+        name, default_name="conv_stride2_multistep", values=[x], reuse=reuse):
+        if nbr_steps == 0:
+            out = conv(x, output_filters, (1, 1))
+        return out, [out]
+        hidden_layers = [x]
+        for i in xrange(nbr_steps):
+            hidden_layers.append(
+                conv(
+                    hidden_layers[-1],
+                    output_filters, (2, 2),
+                    strides=2,
+                    activation=tf.nn.relu,
+                    name="conv" + str(i)))
     return hidden_layers[-1], hidden_layers
 
 
